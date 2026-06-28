@@ -80,9 +80,26 @@ bundle install
 bin/rails db:create db:migrate db:seed
 ```
 
-`.env.example` defaults match `docker compose` (PostgreSQL on port 5433, Redis on 6380). Set `VPNAPI_KEY` for live VPNAPI calls — without it, VPN checks fail open.
+`.env.example` defaults match `docker compose` (PostgreSQL on port 5433, Redis on 6380).
 
 Country whitelist lives in Redis (`country_whitelist` key), loaded by `db:seed`.
+
+## VPNAPI key
+
+Required for the VPN/Tor check. Country and rooted-device checks work without it.
+
+1. Create a free account at [vpnapi.io](https://vpnapi.io)
+2. Open the [dashboard](https://vpnapi.io/dashboard)
+3. Copy your API key
+4. Set it in `.env`:
+
+```bash
+VPNAPI_KEY=your_key_here
+```
+
+Free tier: ~1,000 requests/day. Responses are cached in Redis for 24h per IP.
+
+If the API is unreachable or returns an error, the VPN/Tor check **passes** (fail-open, per spec). A missing `VPNAPI_KEY` will raise an error when that check runs.
 
 ## Run
 
@@ -121,18 +138,29 @@ curl -s -X POST http://localhost:3000/v1/user/check_status \
   -H "CF-IPCountry: US" \
   -H "CF-Connecting-IP: 203.0.113.10" \
   -d '{"idfa":"8264148c-be95-4b2b-b260-6ee98dd53bf6","rooted_device":true}'
+
+# ban — VPN detected (requires VPNAPI_KEY; 1.1.1.1 flagged as VPN by VPNAPI)
+curl -s -X POST http://localhost:3000/v1/user/check_status \
+  -H "Content-Type: application/json" \
+  -H "CF-IPCountry: US" \
+  -H "CF-Connecting-IP: 1.1.1.1" \
+  -d '{"idfa":"22222222-2222-2222-2222-222222222222","rooted_device":false}'
 ```
 
 Expected response: `{ "ban_status": "not_banned" }` or `{ "ban_status": "banned" }`.
 
 ## Environment
 
-Copy `.env.example` to `.env`. Main variables:
+Copy `.env.example` to `.env`. Variables used by the app:
 
-| Variable | Description |
-|---|---|
-| `DB_HOST` / `DB_PORT` | PostgreSQL host and port |
-| `DB_USERNAME` / `DB_PASSWORD` | PostgreSQL credentials |
-| `DATABASE_URL` | Full PostgreSQL connection URL |
-| `REDIS_URL` | Redis connection URL |
-| `VPNAPI_KEY` | VPNAPI key ([docs](https://vpnapi.io/api-documentation)) |
+| Variable | Required | Description |
+|---|---|---|
+| `DB_HOST` | yes | PostgreSQL host (`config/database.yml`) |
+| `DB_PORT` | yes | PostgreSQL port |
+| `DB_USERNAME` | yes | PostgreSQL user |
+| `DB_PASSWORD` | yes | PostgreSQL password |
+| `REDIS_URL` | yes | Redis connection URL |
+| `VPNAPI_KEY` | for VPN check | API key from [vpnapi.io/dashboard](https://vpnapi.io/dashboard) |
+| `DATABASE_URL` | optional | Rails merges this if set; defaults in `.env.example` match the `DB_*` vars above |
+
+Do not commit `.env`.
