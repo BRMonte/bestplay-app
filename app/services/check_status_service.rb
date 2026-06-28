@@ -17,16 +17,19 @@ class CheckStatusService
     check_result = run_checks
     new_status = check_result[:banned] ? User::BANNED : User::NOT_BANNED
     previous_status = user&.ban_status
-    newly_created = user.nil?
 
-    user = persist_user(user, new_status)
+    user, newly_created = nil, false
 
-    log_status_change(
-      newly_created: newly_created,
-      previous_status: previous_status,
-      new_status: new_status,
-      check_result: check_result
-    )
+    ActiveRecord::Base.transaction do
+      user, newly_created = persist_user(user, new_status)
+
+      log_status_change(
+        newly_created: newly_created,
+        previous_status: previous_status,
+        new_status: new_status,
+        check_result: check_result
+      )
+    end
 
     { ban_status: user.ban_status }
   end
@@ -50,10 +53,19 @@ class CheckStatusService
   end
 
   def persist_user(user, new_status)
-    return User.create!(idfa: idfa, ban_status: new_status) if user.nil?
+    if user
+      user.update!(ban_status: new_status)
+      return [ user, false ]
+    end
 
-    user.update!(ban_status: new_status)
-    user
+    created = false
+    record = User.find_or_create_by!(idfa: idfa) do |new_user|
+      new_user.ban_status = new_status
+      created = true
+    end
+
+    record.update!(ban_status: new_status) unless record.ban_status == new_status
+    [ record, created ]
   end
 
   def log_status_change(newly_created:, previous_status:, new_status:, check_result:)

@@ -9,11 +9,13 @@ RSpec.describe VpnApiClient do
   describe "#lookup" do
     context "when response is cached" do
       before do
-        REDIS.setex(
-          "vpnapi:#{ip}",
-          described_class::CACHE_TTL,
-          { vpn: true, tor: false, proxy: false }.to_json
-        )
+        REDIS.with do |redis|
+          redis.setex(
+            "vpnapi:#{ip}",
+            described_class::CACHE_TTL,
+            { vpn: true, tor: false, proxy: false }.to_json
+          )
+        end
       end
 
       it "returns cached data without calling the API" do
@@ -41,7 +43,7 @@ RSpec.describe VpnApiClient do
 
         expect(result.vpn).to be(false)
         expect(result.tor).to be(true)
-        expect(REDIS.ttl("vpnapi:#{ip}")).to be_within(5).of(described_class::CACHE_TTL)
+        expect(REDIS.with { |redis| redis.ttl("vpnapi:#{ip}") }).to be_within(5).of(described_class::CACHE_TTL)
       end
     end
 

@@ -6,15 +6,17 @@ module CountryWhitelist
   def allowed?(country, redis: REDIS)
     return false if country.blank?
 
-    redis.sismember(REDIS_KEY, country.to_s.upcase)
+    redis.with { |client| client.sismember(REDIS_KEY, country.to_s.upcase) }
   end
 
   def add(country, redis: REDIS)
-    redis.sadd(REDIS_KEY, country.to_s.upcase)
+    redis.with { |client| client.sadd(REDIS_KEY, country.to_s.upcase) }
   end
 
   def reset!(countries, redis: REDIS)
-    redis.del(REDIS_KEY)
-    countries.each { |country| add(country, redis: redis) }
+    redis.with do |client|
+      client.del(REDIS_KEY)
+      countries.each { |country| client.sadd(REDIS_KEY, country.to_s.upcase) }
+    end
   end
 end

@@ -110,4 +110,24 @@ RSpec.describe CheckStatusService do
       expect(log.proxy).to be(false)
     end
   end
+
+  context "when logging fails" do
+    let(:logger) { IntegrityLogger.new(sink: failing_sink) }
+    let(:failing_sink) do
+      Class.new do
+        def write(_entry)
+          raise StandardError, "sink unavailable"
+        end
+      end.new
+    end
+
+    before { create(:user, idfa: idfa, ban_status: User::NOT_BANNED) }
+
+    let(:rooted_device) { true }
+
+    it "rolls back the user status change" do
+      expect { service_call }.to raise_error(StandardError, "sink unavailable")
+      expect(User.find_by(idfa: idfa).ban_status).to eq(User::NOT_BANNED)
+    end
+  end
 end

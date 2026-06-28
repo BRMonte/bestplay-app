@@ -5,10 +5,10 @@ class VpnApiClient
 
   Response = Struct.new(:vpn, :tor, :proxy, keyword_init: true)
 
-  def initialize(api_key: ENV.fetch("VPNAPI_KEY"), redis: REDIS, connection: nil)
+  def initialize(api_key: ENV.fetch("VPNAPI_KEY"), redis: REDIS, connection: VpnApiConnection.connection)
     @api_key = api_key
     @redis = redis
-    @connection = connection || default_connection
+    @connection = connection
   end
 
   def lookup(ip)
@@ -29,7 +29,7 @@ class VpnApiClient
   attr_reader :api_key, :redis, :connection
 
   def read_cache(ip)
-    payload = redis.get(cache_key(ip))
+    payload = redis.with { |client| client.get(cache_key(ip)) }
     return unless payload
 
     data = JSON.parse(payload, symbolize_names: true)
@@ -37,7 +37,7 @@ class VpnApiClient
   end
 
   def write_cache(ip, response)
-    redis.setex(cache_key(ip), CACHE_TTL, response.to_h.to_json)
+    redis.with { |client| client.setex(cache_key(ip), CACHE_TTL, response.to_h.to_json) }
   end
 
   def cache_key(ip)
@@ -59,11 +59,5 @@ class VpnApiClient
       tor: security.fetch(:tor, false),
       proxy: security.fetch(:proxy, false)
     )
-  end
-
-  def default_connection
-    Faraday.new do |faraday|
-      faraday.adapter Faraday.default_adapter
-    end
   end
 end
