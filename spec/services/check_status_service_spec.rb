@@ -89,4 +89,25 @@ RSpec.describe CheckStatusService do
       expect(service_call).to eq(ban_status: User::NOT_BANNED)
     end
   end
+
+  context "when the user is banned by VPN" do
+    let(:logger) { IntegrityLogger.new }
+
+    before do
+      stub_request(:get, "https://vpnapi.io/api/#{ip}?key=#{ENV.fetch("VPNAPI_KEY")}").to_return(
+        status: 200,
+        body: { security: { vpn: true, tor: false, proxy: false } }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+    end
+
+    it "persists vpn=true in the integrity log" do
+      service_call
+
+      log = IntegrityLog.last
+      expect(log.ban_status).to eq(User::BANNED)
+      expect(log.vpn).to be(true)
+      expect(log.proxy).to be(false)
+    end
+  end
 end

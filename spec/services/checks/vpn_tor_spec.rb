@@ -9,13 +9,29 @@ RSpec.describe Checks::VpnTor do
   context "when VPNAPI identifies VPN" do
     let(:api_response) { VpnApiClient::Response.new(vpn: true, tor: false, proxy: false) }
 
-    it { is_expected.to eq(banned: true, reason: "vpn_or_tor") }
+    it "bans and preserves network flags for logging" do
+      expect(result).to eq(
+        banned: true,
+        reason: "vpn_or_tor",
+        vpn: true,
+        tor: false,
+        proxy: false
+      )
+    end
   end
 
   context "when VPNAPI identifies Tor" do
     let(:api_response) { VpnApiClient::Response.new(vpn: false, tor: true, proxy: false) }
 
-    it { is_expected.to eq(banned: true, reason: "vpn_or_tor") }
+    it "bans and preserves network flags for logging" do
+      expect(result).to eq(
+        banned: true,
+        reason: "vpn_or_tor",
+        vpn: false,
+        tor: true,
+        proxy: false
+      )
+    end
   end
 
   context "when VPNAPI returns a clean IP" do

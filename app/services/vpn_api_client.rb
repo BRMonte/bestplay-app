@@ -16,9 +16,11 @@ class VpnApiClient
     return cached if cached
 
     response = fetch_from_api(ip)
+    return unless response
+
     write_cache(ip, response)
     response
-  rescue StandardError
+  rescue Faraday::Error, JSON::ParserError, TypeError
     nil
   end
 
@@ -47,7 +49,7 @@ class VpnApiClient
       request.params["key"] = api_key
     end
 
-    raise "VPNAPI request failed with status #{response.status}" unless response.success?
+    return unless response.success?
 
     body = JSON.parse(response.body, symbolize_names: true)
     security = body.fetch(:security, {})

@@ -8,7 +8,7 @@ module Checks
     def call
       response = client.lookup(ip)
       return pass if response.nil?
-      return banned if response.vpn || response.tor
+      return banned(response) if response.vpn || response.tor
 
       pass_with_details(response)
     end
@@ -30,8 +30,14 @@ module Checks
       }
     end
 
-    def banned
-      { banned: true, reason: "vpn_or_tor" }
+    def banned(response)
+      {
+        banned: true,
+        reason: "vpn_or_tor",
+        vpn: response.vpn,
+        tor: response.tor,
+        proxy: response.proxy
+      }
     end
   end
 end
