@@ -67,32 +67,32 @@ CheckStatusService             ← orchestrates lookup, checks, persist, log
 
 ## Stack
 
-Ruby 3.3 · Rails 8 (API) · PostgreSQL · Redis · RSpec · FactoryBot
+Ruby 3.3+ · Rails 8 (API) · PostgreSQL · Redis · RSpec · FactoryBot
 
 ## Setup
 
-Requires Ruby 3.3+ and Docker.
+Requires Ruby 3.3+ (see `.ruby-version`), Docker, and Bundler.
 
 ```bash
-source activate          # Ruby 3.3 via rbenv (this project only)
-cp .env.example .env     # set VPNAPI_KEY if you want real VPNAPI calls
-
+cp .env.example .env
 docker compose up -d
 bundle install
-bin/rails db:create db:migrate db:seed   # seed loads the country whitelist
+bin/rails db:create db:migrate db:seed
 ```
+
+`.env.example` defaults match `docker compose` (PostgreSQL on port 5433, Redis on 6380). Set `VPNAPI_KEY` for live VPNAPI calls — without it, VPN checks fail open.
+
+Country whitelist lives in Redis (`country_whitelist` key), loaded by `db:seed`.
 
 ## Run
 
 ```bash
-source activate
 bin/rails server
 ```
 
 ## Tests
 
 ```bash
-source activate
 bundle exec rspec
 ```
 
@@ -125,10 +125,14 @@ curl -s -X POST http://localhost:3000/v1/user/check_status \
 
 Expected response: `{ "ban_status": "not_banned" }` or `{ "ban_status": "banned" }`.
 
-## Env vars
+## Environment
+
+Copy `.env.example` to `.env`. Main variables:
 
 | Variable | Description |
 |---|---|
-| `DATABASE_URL` | PostgreSQL |
-| `REDIS_URL` | Redis |
+| `DB_HOST` / `DB_PORT` | PostgreSQL host and port |
+| `DB_USERNAME` / `DB_PASSWORD` | PostgreSQL credentials |
+| `DATABASE_URL` | Full PostgreSQL connection URL |
+| `REDIS_URL` | Redis connection URL |
 | `VPNAPI_KEY` | VPNAPI key ([docs](https://vpnapi.io/api-documentation)) |
